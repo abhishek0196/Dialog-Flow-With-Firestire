@@ -1,0 +1,49 @@
+
+'use strict';
+const admin = require('firebase-admin');
+const functions = require('firebase-functions');
+
+admin.initializeApp(functions.config().firebase);
+
+var db = admin.firestore();
+
+
+const {WebhookClient} = require('dialogflow-fulfillment');
+
+process.env.DEBUG = 'dialogflow:*'; // enables lib debugging statements
+
+
+
+db.settings({timestampsInSnapshots: true});
+exports.dialogflowFirebaseFulfillment = functions.https.onRequest((request, response) => {
+  const agent = new WebhookClient({ request, response });
+
+
+
+  function readFromDb (agent) {
+    
+  var citiesRef = db.collection('Location'); //Root Collection Name
+  var allCities = citiesRef.get(); // to get  all the documents from the collection
+    return allCities.then(snapshot => {
+    snapshot.forEach(doc=> {
+      console.log(doc.id, '=>', doc.data()); 
+    
+      agent.add("DOc id=>"+doc.id+"\nData=>"+doc.data().value+"\n");
+  
+    });
+     return Promise.resolve('Read complete');
+  })
+
+  .catch(err => {
+    console.log('Error getting documents', err);
+  });
+
+  }
+
+  // Map from Dialogflow intent names to functions to be run when the intent is matched
+  let intentMap = new Map();
+  intentMap.set('ReadFromFirestore', readFromDb);
+
+  agent.handleRequest(intentMap);
+});
+
